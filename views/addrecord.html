@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title id='title'>Record Add</title>
+    
+    <script src="javascripts/jquery-3.6.1.min.js"></script>
+    <script src="javascripts/bootstrap.js" ></script>
+    <script src="javascripts/jquery-migrate-3.3.0.js" ></script>
+    <script src="javascripts/jquery.dataTables.min.js"></script>
+    <script src="javascripts/dataTables.altEditor.free.js"></script>
+    <script src="javascripts/dataTables.buttons.min.js" ></script>
+    <script src="javascripts/dataTables.select.min.js" ></script>
+    <script src="javascripts/dataTables.responsive.min.js" ></script>
+    <script src="javascripts/xlsx.full.min.js"></script>
+    
+    <link rel="stylesheet" href="stylesheets/bootstrap.css" />
+    <link rel="stylesheet" href="stylesheets/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="stylesheets/buttons.dataTables.min.css" />
+    <link rel="stylesheet" href="stylesheets/select.dataTables.min.css" />
+    <link rel="stylesheet" href="stylesheets/responsive.dataTables.min.css" />
+    <link rel="stylesheet" href="stylesheets/font-awesome.css" />
+    
+  </head>
+  <body>
+    
+    <div style="display:inline-block;">
+      <p id='subtitle'></p><p>从Excel表复制:</p>
+    </div>
+    <div style="display:inline-block; width:50%;">
+      <textarea id='excelcopy' style="margin: 0px; width: 50%; height: 42px;"></textarea>
+      <input type="file" name="xlfile" id="xlf" >
+    </div>
+
+    <div class="container">
+      <button class="btn btn-primary" id="addbutton" title="Add"><span class="fa fa-plus-square"></span></button>
+      <table id="recordtable" class="display" cellspacing="0" width="100%" class="dataTable table table-striped"></table>
+    </div>
+    <table>
+      <tr>
+          <td><button id='cancel' style="width:100%;background-color:gray;color:white">取消</button></td>
+          <td><button id='submit' style="width:100%;background-color:black;color:white">提交</button></td>
+      </tr>
+    </table>
+    
+    <script>
+    //获取url中的参数
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
+        var r = window.location.search.substr(1).match(reg); //匹配目标参数
+        if (r != null) return unescape(r[2]); return null; //返回参数值
+    }
+    function obj2array(obj , columns)
+    {
+        var array=[];
+        for(var index = 0 ; index < columns.length ; index ++ )
+        {
+            array.push(obj[columns[index].name]);
+        }
+        return array;
+    }
+    function array2obj(array , columns)
+    {
+        var obj={};
+        for(var index = 0 ; index < columns.length ; index ++ )
+        {
+            obj[columns[index].name] = array[index];
+        }
+        return obj;
+    }
+    function extractArrayFromXlsxObj(obj , columns)
+    {
+      var bEmpty = true;
+      var rowArray = [];
+      for(var index = 0 ;index < columns.length ; index ++)
+      {
+        var key = columns[index].title;
+        if(!(('undefined' == (typeof obj[key])) || (null == obj[key])))
+        {
+          rowArray.push(obj[key]);
+          bEmpty = false;
+        }
+        else
+        {
+          rowArray.push('');
+        }
+
+      }
+      if(bEmpty) rowArray = null;
+      return rowArray;
+    }
+    function excel2XlsxJSON(workbook) {
+      var result = {};
+      workbook.SheetNames.forEach(function(sheetName) {
+        //var roa = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header:1});
+        var roa = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName],{raw: false});
+        if(roa.length) result[sheetName] = roa;
+      });
+      return JSON.stringify(result, 2, 2);
+    };
+    
+    function fixdata(data) { //文件流转BinaryString
+      var o = "",
+      l = 0,
+      w = 10240;
+      for(; l < data.byteLength / w; ++l) 
+      {
+        o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w, l * w + w)));
+        o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w)));
+      }
+        
+      return o;
+    }
+
+    function init(type , columns , data)
+    {
+          var table = $('#recordtable').DataTable({
+              data: data,
+              columns: columns.concat({
+                data: null,
+                title: "Actions",
+                name: "Actions",
+                render: function (data, type, row, meta) {
+                  return '<a class="delbutton fa fa-minus-square btn btn-danger" href="#"></a>';
+                },
+                disabled: true
+              }),
+              dom: 'Bfrtip',        // Needs button container
+              select: 'single',
+              responsive: true,
+              altEditor: true,     // Enable altEditor
+              ordering:false,       // no ordering
+              buttons: [],          // no buttons, however this seems compulsory
+             
+          });
+
+           // Edit
+          $(document).on('click', "[id^='recordtable'] tbody ", 'tr', function () {
+            var tableID = $(this).closest('table').attr('id');    // id of the table
+            var that = $( '#'+tableID )[0].altEditor;
+            that._openEditModal();
+            $('#altEditor-edit-form-' + that.random_id)
+                        .off('submit')
+                        .on('submit', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            that._editRowData();
+                        });
+          });
+
+          // Delete
+          $(document).on('click', "[id^='recordtable'] .delbutton", 'tr', function (x) {
+            var tableID = $(this).closest('table').attr('id');    // id of the table
+            var that = $( '#'+tableID )[0].altEditor;
+            that._openDeleteModal();
+            $('#altEditor-delete-form-' + that.random_id)
+                        .off('submit')
+                        .on('submit', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            that._deleteRow();
+                        });
+            x.stopPropagation(); //avoid open "Edit" dialog
+          });
+
+          // Add row
+          $('#addbutton').on('click', function () {
+            var that = $( '#recordtable' )[0].altEditor;
+            that._openAddModal();
+            $('#altEditor-add-form-' + that.random_id)
+                        .off('submit')
+                        .on('submit', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            that._addRowData();
+                        });
+          });
+
+          //Excel file
+          $("#xlf").change(function(e) {
+            //是否将文件读取为二进制字符串
+            var wb = null;
+            const rABS = false;
+            if(!e.target.files) {
+              return wb;
+            }
+            var f = e.target.files[0];
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              var data = e.target.result;
+              if(rABS) {
+                wb = XLSX.read(btoa(fixdata(data)), {//手动转化
+                  type: 'base64'
+                });
+              } else {
+                wb = XLSX.read(data, {
+                  type: 'binary'
+                });
+              }
+              //wb.SheetNames[0]是获取Sheets中第一个Sheet的名字
+              //wb.Sheets[Sheet名]获取第一个Sheet的数据
+              //console.log(JSON.stringify( XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) ));
+              var jsonSheets = JSON.parse(excel2XlsxJSON(wb));
+              var data = [];
+              for (let key in jsonSheets) {
+                var jsonSheet = jsonSheets[key];
+                jsonSheet.forEach((jsonRow)=>{
+                  var ary = extractArrayFromXlsxObj(jsonRow , columns);
+                  if(null != ary)
+                  {
+                    data.push(ary);
+                  }
+                  
+                })
+              }
+              console.log(data);
+              $('#recordtable').dataTable().fnClearTable();
+              if(data.length > 0)
+              {
+                $('#recordtable').dataTable().fnAddData(data);
+              }
+
+            };
+            if(rABS) {
+              reader.readAsArrayBuffer(f);
+            } else {
+              reader.readAsBinaryString(f);
+            }
+          });
+
+          //excel copy
+          $("#excelcopy").bind('input',function() {
+            var data = [];
+            var text = $("#excelcopy").val();
+            var rows = text.split('\n');
+            rows.forEach(row => {
+              if(row.trim() != '')
+              {
+                var fields = row.split('\t');
+                data.push(fields);
+              }
+            });
+            console.log(data);
+            
+            $('#recordtable').dataTable().fnClearTable();
+            if(data.length > 0)
+            {
+              $('#recordtable').dataTable().fnAddData(data);
+            }
+            
+          });
+
+          // submit
+          $('#submit').on('click', function () {
+            var data = [];
+            var rows = table.rows().data().toArray();
+            rows.forEach((row)=>{
+              data.push(array2obj(row , columns));
+            });
+            var result = {type:type,data: data};
+           
+            $.ajax({
+                type: 'post',
+                url: 'add.do',
+                async: false, // 使用同步方式
+                // 1 需要使用JSON.stringify 否则格式为 a=2&b=3&now=14...
+                // 2 需要强制类型转换，否则格式为 {"a":"2","b":"3"}
+                data: JSON.stringify(result),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function(data) {
+                    console.log(data);
+                    history.back();
+                } // 注意不要在此行增加逗号
+            });
+
+          });
+          // cancel
+          $('#cancel').on('click', function () {
+            history.go(-1);
+          });
+    }
+
+
+    $(document).ready(function(){
+      $.getJSON('/getconfig.do', {type:getUrlParam('type')}, function(result) {
+          $('#title').html(result.title);
+          $('#subtitle').html(result.title);
+          init(result.type, result.columns , result.data);
+      });
+    });  
+    </script>
+  </body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>总览</title>
+    
+    
+    <script src="javascripts/jquery-3.6.1.min.js"></script>
+    <script src="javascripts/bootstrap.js" ></script>
+    <script src="javascripts/jquery-migrate-3.3.0.js" ></script>
+    <script src="javascripts/jquery.dataTables.min.js"></script>
+    <script src="javascripts/dataTables.altEditor.free.js"></script>
+    <script src="javascripts/dataTables.buttons.min.js" ></script>
+    <script src="javascripts/dataTables.select.min.js" ></script>
+    <script src="javascripts/dataTables.responsive.min.js" ></script>
+    <script src="javascripts/jquery.tmpl.min.js" ></script>
+    
+    
+    <link rel="stylesheet" href="stylesheets/bootstrap.css" />
+    <link rel="stylesheet" href="stylesheets/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="stylesheets/buttons.dataTables.min.css" />
+    <link rel="stylesheet" href="stylesheets/select.dataTables.min.css" />
+    <link rel="stylesheet" href="stylesheets/responsive.dataTables.min.css" />
+    <link rel="stylesheet" href="stylesheets/font-awesome.css" />
+
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+    <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+    <link rel="stylesheet" href="http://jqueryui.com/resources/demos/style.css">
+    
+
+  </head>
+  <body>
+      <div id="tabs">
+        <ul id="tab_titles">
+        </ul>
+        <div id="tab_contents" >
+        </div>
+      </div>
+    
+    <script id="tmpltabtitle" type="text/x-jquery-tmpl">
+        <li><a href="#tabs-${type}">${title}</a></li>
+    </script>
+
+    <script id="tmpltabcontent" type="text/x-jquery-tmpl">
+        <div id="tabs-${type}">
+            <div class="container">
+                <table id="${type}" class="display" cellspacing="0" width="100%" class="dataTable table table-striped"></table>
+                <a href="addrecord?type=${type}" id="${type}Add">批量增加</a>
+            </div>
+        </div>
+    </script>
+
+    <script>
+        function obj2array(obj , columns)
+        {
+            var array=[];
+            for(var index = 0 ; index < columns.length ; index ++ )
+            {
+                array.push(obj[columns[index].name]);
+            }
+            return array;
+        }
+        function array2obj(array , columns)
+        {
+            var obj={};
+            for(var index = 0 ; index < columns.length ; index ++ )
+            {
+                obj[columns[index].name] = array[index];
+            }
+            return obj;
+        }
+        function initTable(type,rows,columns)
+        {
+            columns.unshift({
+                title: "ID",
+                name: "_id",
+                visible: false,
+            });
+
+            var data=[];
+            rows.forEach(obj => {
+                data.push(obj2array(obj , columns));
+            });
+
+            var table = $('#'+type).DataTable({
+                altEditor: true,     // 必须设置为true
+                data: data,
+                columns: columns,
+                dom: 'Bfrtip',        // Needs button container
+                select: 'single',
+                responsive: true,
+                ordering:false,       // no ordering
+                bAutoWidth: false,
+                altEditor: true,     // Enable altEditor
+                buttons: [
+                    {
+                        extend: 'selected', // Bind to Selected row
+                        text: '编辑',
+                        name: 'edit'        // do not change name
+                    },
+                    {
+                        extend: 'selected', // Bind to Selected row
+                        text: '删除',
+                        name: 'delete'      // do not change name
+                    }
+                ],
+                onDeleteRow: function(datatable, rowdata, success, error) {
+                    var obj = array2obj(rowdata[0] , columns);
+                    console.log(obj);
+                    $.ajax({
+                        // a tipycal url would be /{id} with type='DELETE'
+                        url: '/delete.do',
+                        type: 'POST',
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json",
+                        data: JSON.stringify({type:type, rowdata:obj}),
+                        success: success,
+                        error: error
+                    });
+                },
+                onEditRow: function(datatable, rowdata, success, error) {
+                    var obj = array2obj(rowdata[0] , columns);
+                    console.log(obj);
+                    $.ajax({
+                        // a tipycal url would be /{id} with type='POST'
+                        url: '/edit.do',
+                        type: 'POST',
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json",
+                        data: JSON.stringify({type:type, rowdata:array2obj(rowdata , columns)}),
+                        success: success,
+                        error: error
+                    });
+                }
+            });
+
+            return table;
+            
+        }
+        
+
+        $.getJSON('/getall.do', {}, function(result) {
+            for(var i=0 ;i < result.length; i ++)
+            {
+                var item=result[i];
+                $('#tmpltabtitle').tmpl(item).appendTo('#tab_titles');
+                $('#tmpltabcontent').tmpl(item).appendTo('#tab_contents');
+                initTable(item.type,item.data,item.columns);
+            }
+            $( "#tabs" ).tabs();
+        });
+
+    </script>
+  </body>
+</html>
