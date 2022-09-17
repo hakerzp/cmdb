@@ -46,11 +46,31 @@
             <div class="container">
                 <table id="${type}" class="display" cellspacing="0" width="100%" class="dataTable table table-striped"></table>
                 <a href="addrecord?type=${type}" id="${type}Add">批量增加</a>
+                <a href="javascript:void(0)" id="${type}Delete" onclick="deleteAll('${type}')">全部删除</a>
             </div>
         </div>
     </script>
 
     <script>
+        function deleteAll(type)
+        {
+            if (confirm("Are you sure to delete all data?") == true) {
+                $.ajax({
+                    // a tipycal url would be /{id} with type='DELETE'
+                    url: '/deleteall.do',
+                    type: 'POST',
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    data: JSON.stringify({type:type}),
+                    success: (res)=>{
+                        location.reload();
+                    },
+                    error: (res)=>{
+                        
+                    },
+                });
+            }
+        }
         function obj2array(obj , columns)
         {
             var array=[];
@@ -139,7 +159,7 @@
         }
         
 
-        $.getJSON('/getall.do', {}, function(result) {
+        $.getJSON('/getdataall.do', {}, function(result) {
             for(var i=0 ;i < result.length; i ++)
             {
                 var item=result[i];

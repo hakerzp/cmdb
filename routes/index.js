@@ -44,6 +44,7 @@ var order=[];
 
 const TB_CONFIGS=[
   {type:'tasks' , title:'任务分解' , columns:[
+    { title: "项目" ,name: "project" },
     { title: "任务" ,name: "task" },
     { title: "地点" ,name: "site" },
     { title: "责任人" ,name: "owner" },
@@ -108,7 +109,7 @@ router.get('/getconfig.do', function(req, res, next) {
   res.json(config);
 });
 
-router.get('/getall.do', async function(req, res, next) {
+router.get('/getdataall.do', async function(req, res, next) {
   var configs = clone(TB_CONFIGS);
   
   for(var i = 0 ;i < configs.length ; i ++)
@@ -127,7 +128,32 @@ router.get('/getall.do', async function(req, res, next) {
   
   res.json(configs);
 });
-
+router.get('/getdata.do', async function(req, res, next) {
+  var type = req.query.type;
+  var configRet = null;
+  
+  for(var i = 0 ;i < TB_CONFIGS.length ; i ++)
+  {
+    
+    var config = TB_CONFIGS[i];
+    if(config.type == type)
+    {
+      var data = [];
+      var tbc = database.collection(config.type);
+      var cursor = tbc.find();
+      await cursor.forEach((item)=>{
+        data.push(item);
+      });
+      configRet = clone(config);
+      configRet.data = data;
+      break;
+    }
+    
+    
+  }
+  
+  res.json(configRet);
+});
 
 router.post('/add.do', async function(req, res, next) {
   var reqJson = req.body;
@@ -163,6 +189,23 @@ router.post('/delete.do', async function(req, res, next) {
   }
   res.json({errorCode:0,result:result});
 });
+router.post('/deleteall.do', async function(req, res, next) {
+  var type = req.body.type;
+  var result = null;
+  for(var i = 0 ;i < TB_CONFIGS.length ; i ++)
+  {
+    var config = TB_CONFIGS[i];
+    
+    if(config.type == type)
+    {
+      var tbc = database.collection(config.type);
+      result = await tbc.drop();
+      break;
+    }
+  }
+  res.json({errorCode:0,result:result});
+});
+
 router.post('/edit.do', async function(req, res, next) {
   var reqJson = req.body;
   var result = null;
