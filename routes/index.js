@@ -47,6 +47,7 @@ const TB_CONFIGS=[
     { title: "项目" ,name: "project" },
     { title: "任务" ,name: "task" },
     { title: "地点" ,name: "site" },
+    { title: "部门" ,name: "department" },
     { title: "责任人" ,name: "owner" },
     { title: "开始时间" ,name: "starttime"},
     { title: "结束时间" ,name: "endtime"},

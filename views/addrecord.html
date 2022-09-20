@@ -28,8 +28,10 @@
       <p id='subtitle'></p><p>从Excel表复制:</p>
     </div>
     <div style="display:inline-block; width:50%;">
-      <textarea id='excelcopy' style="margin: 0px; width: 50%; height: 42px;"></textarea>
-      <input type="file" name="xlfile" id="xlf" >
+      <textarea id='excelcopy' style="margin: 0px; width: 50%; height: 42px;display:none;"></textarea>
+      <input type="file" name="xlfile" id="xlf">
+      <select name="sheets" id="sheets">
+      </select>
     </div>
 
     <div class="container">
@@ -177,13 +179,35 @@
           });
 
           //Excel file
+          var fnSelectSheet=(name)=>
+          {
+              var data = [];
+              var jsonSheet = jsonSheets[name];
+              jsonSheet.forEach((jsonRow)=>{
+                var ary = extractArrayFromXlsxObj(jsonRow , columns);
+                if(null != ary)
+                {
+                  data.push(ary);
+                }
+                
+              });
+              
+              $('#recordtable').dataTable().fnClearTable();
+              if(data.length > 0)
+              {
+                $('#recordtable').dataTable().fnAddData(data);
+              }
+          }
+          var jsonSheets = null;
           $("#xlf").change(function(e) {
+            $('#sheets').empty();
             //是否将文件读取为二进制字符串
             var wb = null;
             const rABS = false;
             if(!e.target.files) {
               return wb;
             }
+            
             var f = e.target.files[0];
             var reader = new FileReader();
             reader.onload = function(e) {
@@ -200,26 +224,20 @@
               //wb.SheetNames[0]是获取Sheets中第一个Sheet的名字
               //wb.Sheets[Sheet名]获取第一个Sheet的数据
               //console.log(JSON.stringify( XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) ));
-              var jsonSheets = JSON.parse(excel2XlsxJSON(wb));
-              var data = [];
-              for (let key in jsonSheets) {
-                var jsonSheet = jsonSheets[key];
-                jsonSheet.forEach((jsonRow)=>{
-                  var ary = extractArrayFromXlsxObj(jsonRow , columns);
-                  if(null != ary)
-                  {
-                    data.push(ary);
-                  }
-                  
-                })
-              }
-              console.log(data);
-              $('#recordtable').dataTable().fnClearTable();
-              if(data.length > 0)
+              jsonSheets = JSON.parse(excel2XlsxJSON(wb));
+              var count = 0; 
+              var firstKey = null;
+              for(var key in jsonSheets)
               {
-                $('#recordtable').dataTable().fnAddData(data);
+                count ++;
+                if(1==count)
+                {
+                  firstKey = key;
+                }
+                $('#sheets').append(`<option value='${key}'>${key}</option>`);  
               }
 
+              fnSelectSheet(firstKey);
             };
             if(rABS) {
               reader.readAsArrayBuffer(f);
@@ -227,7 +245,11 @@
               reader.readAsBinaryString(f);
             }
           });
-
+          // sheets select
+          $('#sheets').change(function(){
+              var sheetSelect=$(this).children('option:selected').val();
+              fnSelectSheet(sheetSelect);
+          });
           //excel copy
           $("#excelcopy").bind('input',function() {
             var data = [];

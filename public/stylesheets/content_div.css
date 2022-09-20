@@ -1,26 +1,24 @@
 .father_box {
     margin-top: 5px;
     position: relative;
-    width: 90%;
+    width: 100%;
     height: 900px;
-    margin-left: 5%;
-    margin-right: 5%;
     background-color: white;
 }
 
 .content_one {
     overflow: hidden;
     padding-top: 3px;
-    width: 18%;
+    width: 5%;
     height: 100%;
     background-color: white;
 }
 
 .content_two {
     position: relative;
-    left: 18%;
+    left: 5%;
     top: -900px;
-    width: 82%;
+    width: 95%;
     height: 100%;
     background-color: white;
 }
